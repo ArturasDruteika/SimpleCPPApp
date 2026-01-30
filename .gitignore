@@ -1,0 +1,5 @@
+# VS-Code
+.vscode/
+
+# Build (if it is saved in the project root)
+build/
