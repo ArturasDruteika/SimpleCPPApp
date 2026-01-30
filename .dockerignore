@@ -9,3 +9,5 @@ CMakeFiles/
 *.dll
 *.exe
 .vscode/
+.git/
+.idea/
