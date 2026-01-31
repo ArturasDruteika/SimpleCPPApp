@@ -57,10 +57,26 @@ There are two main workflows:
    ```
 
 2. **Run the container (container will build and debug):**
+   
+   #### Linux
    ```sh
-    docker run -d --rm   --name cppdbg   --privileged   -v "$PWD":/app   -v cpp_build:/app/build   -w /app   --entrypoint sleep   simplecppapp:debug infinity
+    docker run -d --rm --name cppdbg --privileged -v "$PWD":/app -v cpp_build:/app/build -w /app --entrypoint sleep   simplecppapp:debug infinity
+   ```
+
+   #### Windows
+   ```sh
+   docker run -d --rm --name cppdbg --privileged -v ${PWD}:/app -v cpp_build:/app/build -w /app --entrypoint sleep simplecppapp:debug infinity
    ```
    The entrypoint script will build the app inside the container and launch it under `gdbserver`.
+
+
+
+3. Exec into the container and build the app
+    ```sh
+    docker exec -it cppdbg bash
+    cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Debug
+    cmake --build /app/build -j
+    ```
 
 ---
 

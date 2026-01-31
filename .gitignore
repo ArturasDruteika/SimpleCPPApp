@@ -1,5 +1,6 @@
 # VS-Code
 .vscode/
+.history/
 
 # Build (if it is saved in the project root)
 build/
