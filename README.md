@@ -71,11 +71,10 @@ There are two main workflows:
 
 
 
-3. Exec into the container and build the app
+3. Exec into the container
     ```sh
     docker exec -it cppdbg bash
-    cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Debug
-    cmake --build /app/build -j
+    tty
     ```
 
 ---
