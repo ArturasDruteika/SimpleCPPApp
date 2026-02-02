@@ -1,4 +1,4 @@
-FROM gcc:13
+FROM gcc:13 AS build
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -6,20 +6,32 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-RUN mkdir -p /app/build
 
-# Copy sources first (so we can build them during docker build)
+# Copy sources and build once during image build
 COPY . /app
 
-# Build args so you can switch Debug/Release at build time
 ARG CMAKE_BUILD_TYPE=Debug
-
-# Configure + build at image build time
 RUN cmake -S /app -B /app/build -G Ninja -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
  && cmake --build /app/build -j
 
-# Keep your entrypoint (runtime behavior)
+FROM gcc:13 AS runtime
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    gdb gdbserver python3 libc6-dbg \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ARG SERVICE_BIN=service1
+
+COPY --from=build /app/build/${SERVICE_BIN} /app/bin/service
+COPY --from=build /app/build/lib*.so /app/bin/
 COPY entrypoint.sh /entrypoint.sh
+
 RUN chmod +x /entrypoint.sh
+
+ENV APP_BIN=/app/bin/service
+ENV LD_LIBRARY_PATH=/app/bin
 
 ENTRYPOINT ["/entrypoint.sh"]

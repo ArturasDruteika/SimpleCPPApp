@@ -9,6 +9,7 @@ This project demonstrates how to debug a C++ application running inside a Docker
 - The container exposes port 2000 for remote debugging.
 - The source code is mounted read-only into the container, while the build directory is mounted read-write (for incremental builds).
 - The entrypoint script (`entrypoint.sh`) configures, builds, and launches the app under `gdbserver`.
+- The solution now includes 4 shared libraries and 2 service executables that can run in separate containers.
 
 ## Prerequisites
 
@@ -60,7 +61,7 @@ There are two main workflows:
    
    #### Linux
    ```sh
-    docker run -d --rm --name cppdbg --privileged -v "$PWD":/app -v cpp_build:/app/build -w /app --entrypoint sleep   simplecppapp:debug infinity
+   docker run -d --rm --name cppdbg --privileged -v "$PWD":/app -v cpp_build:/app/build -w /app --entrypoint sleep   simplecppapp:debug infinity
    ```
 
    #### Windows
@@ -169,6 +170,70 @@ Regardless of where you build, you can debug using your IDE (e.g., VS Code) by a
 ---
 
 5. **Set breakpoints in your IDE and start debugging!**
+
+## Services + Shared Libraries (new)
+
+This project now has:
+- 4 shared libs: `core`, `math`, `text`, `time`
+- 2 service executables: `service1`, `service2`
+
+The service binaries are built into `/app/build/service1` and `/app/build/service2`.
+
+### Run services in separate containers
+
+Use the new docker compose file to run each service in its own container and gdbserver port:
+
+```sh
+docker compose up --build
+```
+
+This will start:
+- `service1` in container `cpp_service1` on port `2001`
+- `service2` in container `cpp_service2` on port `2002`
+
+### VS Code pipeTransport examples
+
+Attach to service1:
+
+```json
+{
+  "name": "Debug service1 (container)",
+  "type": "cppdbg",
+  "request": "launch",
+  "MIMode": "gdb",
+  "program": "/app/build/service1",
+  "cwd": "/app",
+  "pipeTransport": {
+    "pipeProgram": "docker",
+    "pipeArgs": ["exec", "-i", "cpp_service1", "sh", "-lc"],
+    "debuggerPath": "/usr/bin/gdb"
+  },
+  "sourceFileMap": {
+    "/app": "${workspaceFolder}"
+  }
+}
+```
+
+Attach to service2:
+
+```json
+{
+  "name": "Debug service2 (container)",
+  "type": "cppdbg",
+  "request": "launch",
+  "MIMode": "gdb",
+  "program": "/app/build/service2",
+  "cwd": "/app",
+  "pipeTransport": {
+    "pipeProgram": "docker",
+    "pipeArgs": ["exec", "-i", "cpp_service2", "sh", "-lc"],
+    "debuggerPath": "/usr/bin/gdb"
+  },
+  "sourceFileMap": {
+    "/app": "${workspaceFolder}"
+  }
+}
+```
 
 ## Notes
 - You can pass arguments to the app by appending them to the `docker run` command.
