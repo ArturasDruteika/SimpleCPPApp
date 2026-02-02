@@ -1,258 +1,116 @@
-# SimpleCPPApp: Debug C++ in Docker with IDE Breakpoints
+# SimpleCPPApp: Debug C++ Services in Docker with VS Code
 
-This project demonstrates how to debug a C++ application running inside a Docker container, allowing you to hit breakpoints from your IDE (such as VS Code) on your host machine.
+This project shows how to debug two C++ services running in separate Docker containers using VS Code breakpoints. The build happens inside the containers and gdb runs inside each container (no gdbserver).
 
-## How It Works
+## What’s Included
 
-- The app is a simple C++17 program (see `main.cpp`).
-- The Docker image builds the app in Debug mode and launches it under `gdbserver`.
-- The container exposes port 2000 for remote debugging.
-- The source code is mounted read-only into the container, while the build directory is mounted read-write (for incremental builds).
-- The entrypoint script (`entrypoint.sh`) configures, builds, and launches the app under `gdbserver`.
-- The solution now includes 4 shared libraries and 2 service executables that can run in separate containers.
+- 4 shared libs: core, math, text, time
+- 2 services: service1, service2
+- Each service has its own container image with only built artifacts (no source code)
 
 ## Prerequisites
 
-- Docker installed on your host
-- An IDE with C++ debugging support (e.g., VS Code with C++ extension)
+- Docker
+- VS Code with C++ extension
 
-
-## Quick Start
-
-There are two main workflows:
-
-### 1. Build on Host, Debug in Container
-
-1. **Build the app on your host:**
-   ```sh
-   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-   cmake --build build
-   ```
-
-2. **Build the Docker image:**
-   ```sh
-   docker build -t simplecppapp:debug .
-   ```
-
-3. **Run the container (using your host build):**
-   ```sh
-   docker run -it --rm \
-     --name cppdbg \
-     --cap-add=SYS_PTRACE \
-     --security-opt seccomp=unconfined \
-     -p 2000:2000 \
-     -v "$PWD":/app:ro \
-     -v "$PWD/build":/app/build:rw \
-     -w /app \
-     simplecppapp:debug "abcd"
-   ```
-   This will start the app under `gdbserver` listening on port 2000, using the binary you built on your host. You can replace `"abcd"` with any arguments you want to pass to the app.
-
----
-
-### 2. Build and Debug Entirely in Container (Recommended for Clean/Consistent Builds)
-
-1. **Build the Docker image:**
-   ```sh
-   docker build -t simplecppapp:debug .
-   ```
-
-2. **Run the container (container will build and debug):**
-   
-   #### Linux
-   ```sh
-   docker run -d --rm --name cppdbg --privileged -v "$PWD":/app -v cpp_build:/app/build -w /app --entrypoint sleep   simplecppapp:debug infinity
-   ```
-
-   #### Windows
-   ```sh
-   docker run -d --rm --name cppdbg --privileged -v ${PWD}:/app -v cpp_build:/app/build -w /app --entrypoint sleep simplecppapp:debug infinity
-   ```
-   The entrypoint script will build the app inside the container and launch it under `gdbserver`.
-
-
-
-3. Exec into the container
-    ```sh
-    docker exec -it cppdbg bash
-    tty
-    ```
-
----
-
-## Configure your IDE for Remote Debugging
-
-Regardless of where you build, you can debug using your IDE (e.g., VS Code) by attaching to the running `gdbserver` in the container.
-
-### VS Code Example (`launch.json`)
-
-#### If you built on the host (binary at `${workspaceFolder}/build/SimpleCPPApp`):
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Attach to gdbserver in Docker (host build)",
-      "type": "cppdbg",
-      "request": "launch",
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb",
-      "miDebuggerServerAddress": "localhost:2000",
-      "program": "${workspaceFolder}/build/SimpleCPPApp",
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "sourceFileMap": {
-        "/app": "${workspaceFolder}"
-      },
-      "setupCommands": [
-        { "text": "set auto-load safe-path /" },
-        { "text": "-enable-pretty-printing" },
-        {
-          "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"
-        },
-        { "text": "set print pretty on" },
-        { "text": "set print object on" },
-        { "text": "set print elements 0" }
-      ]
-    }
-  ]
-}
-```
-
-#### If you built in the container (binary at `/app/build/SimpleCPPApp`):
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug (gdb in container via docker exec)",
-      "type": "cppdbg",
-      "request": "launch",
-      "MIMode": "gdb",
-
-      "program": "/app/build/SimpleCPPApp",
-      "args": ["abcd"],
-      "cwd": "/app",
-
-      "pipeTransport": {
-        "pipeProgram": "docker",
-        "pipeArgs": ["exec", "-i", "cppdbg", "sh", "-lc"],
-        "debuggerPath": "/usr/bin/gdb"
-      },
-
-      "externalConsole": false,
-
-      "sourceFileMap": {
-        "/app": "${workspaceFolder}"
-      },
-
-      "setupCommands": [
-        { "text": "set inferior-tty /dev/pts/0" },
-        { "text": "set auto-load safe-path /" },
-        { "text": "-enable-pretty-printing" },
-        {
-          "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"
-        },
-        { "text": "set print pretty on" },
-        { "text": "set print object on" },
-        { "text": "set print elements 0" }
-      ]
-    }
-  ]
-}
-
-```
-
-**Note:** The only difference is where the binary was built. The path mapping remains the same as long as you mount your workspace to `/app`.
-
----
-
-5. **Set breakpoints in your IDE and start debugging!**
-
-## Services + Shared Libraries (new)
-
-This project now has:
-- 4 shared libs: `core`, `math`, `text`, `time`
-- 2 service executables: `service1`, `service2`
-
-The service binaries are built into `/app/build/service1` and `/app/build/service2`.
-
-### Run services in separate containers
-
-Use the new docker compose file to run each service in its own container and gdbserver port:
+## Build + Run
 
 ```sh
-docker compose up --build
+docker compose up --build -d
 ```
 
-This will start:
-- `service1` in container `cpp_service1` on port `2001`
-- `service2` in container `cpp_service2` on port `2002`
+Containers:
+- cpp_service1 (service1)
+- cpp_service2 (service2)
 
-### VS Code pipeTransport examples
+## Debugging (gdb inside containers)
 
-Attach to service1:
+Use the provided VS Code configs in launch.json:
+
+- Debug service1 (gdb in cpp_service1)
+- Debug service2 (gdb in cpp_service2)
+
+Both use pipeTransport and run gdb inside the container. Source mapping uses /app to your workspace.
+
+### launch.json (current)
 
 ```json
 {
-  "name": "Debug service1 (container)",
-  "type": "cppdbg",
-  "request": "launch",
-  "MIMode": "gdb",
-  "program": "/app/build/service1",
-  "cwd": "/app",
-  "pipeTransport": {
-    "pipeProgram": "docker",
-    "pipeArgs": ["exec", "-i", "cpp_service1", "sh", "-lc"],
-    "debuggerPath": "/usr/bin/gdb"
-  },
-  "sourceFileMap": {
-    "/app": "${workspaceFolder}"
-  }
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug service1 (gdb in cpp_service1)",
+			"type": "cppdbg",
+			"request": "launch",
+			"MIMode": "gdb",
+			"program": "/app/bin/service",
+			"args": [],
+			"cwd": "/app",
+			"pipeTransport": {
+				"pipeProgram": "docker",
+				"pipeArgs": ["exec", "-i", "cpp_service1", "sh", "-lc"],
+				"debuggerPath": "/usr/bin/gdb"
+			},
+			"externalConsole": false,
+			"sourceFileMap": {
+				"/app": "${workspaceFolder}"
+			},
+			"setupCommands": [
+				{ "text": "set inferior-tty /dev/pts/1" },
+				{ "text": "set auto-load safe-path /" },
+				{ "text": "-enable-pretty-printing" },
+				{ "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"},
+				{ "text": "set print pretty on" },
+				{ "text": "set print object on" },
+				{ "text": "set print elements 0" }
+			]
+		},
+		{
+			"name": "Debug service2 (gdb in cpp_service2)",
+			"type": "cppdbg",
+			"request": "launch",
+			"MIMode": "gdb",
+			"program": "/app/bin/service",
+			"args": ["message-from-service2"],
+			"cwd": "/app",
+			"pipeTransport": {
+				"pipeProgram": "docker",
+				"pipeArgs": ["exec", "-i", "cpp_service2", "sh", "-lc"],
+				"debuggerPath": "/usr/bin/gdb"
+			},
+			"externalConsole": false,
+			"sourceFileMap": {
+				"/app": "${workspaceFolder}"
+			},
+			"setupCommands": [
+				{ "text": "set inferior-tty /dev/pts/1" },
+				{ "text": "set auto-load safe-path /" },
+				{ "text": "-enable-pretty-printing" },
+				{ "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"},
+				{ "text": "set print pretty on" },
+				{ "text": "set print object on" },
+				{ "text": "set print elements 0" }
+			]
+		}
+	]
 }
 ```
 
-Attach to service2:
+### Quick debug tutorial
 
-```json
-{
-  "name": "Debug service2 (container)",
-  "type": "cppdbg",
-  "request": "launch",
-  "MIMode": "gdb",
-  "program": "/app/build/service2",
-  "cwd": "/app",
-  "pipeTransport": {
-    "pipeProgram": "docker",
-    "pipeArgs": ["exec", "-i", "cpp_service2", "sh", "-lc"],
-    "debuggerPath": "/usr/bin/gdb"
-  },
-  "sourceFileMap": {
-    "/app": "${workspaceFolder}"
-  }
-}
-```
+1. Build and start the containers:
+	 ```sh
+	 docker compose up --build -d
+	 ```
+2. Set breakpoints in:
+	 - services/service1/main.cpp
+	 - services/service2/main.cpp
+3. In VS Code, open Run and Debug and pick:
+	 - Debug service1 (gdb in cpp_service1), or
+	 - Debug service2 (gdb in cpp_service2)
+4. Press Start. Execution will stop on your breakpoints.
 
 ## Notes
-- You can pass arguments to the app by appending them to the `docker run` command.
-- The container rebuilds the app on each start if sources change.
-- The build system uses CMake and Ninja (or Makefiles if Ninja is unavailable).
 
-## Files
-- `main.cpp`: Example C++ app
-- `Dockerfile`: Build environment and entrypoint
-- `entrypoint.sh`: Build and launch under gdbserver
-- `CMakeLists.txt`, `CMakePresets.json`: Build configuration
-
----
-
-This setup is ideal for debugging C++ apps in containers with full IDE support, matching production-like environments.
-
-
-## Steps to Launch
-
-1. `docker build -t simplecppapp:debug .`
-2. `docker volume create cpp_build`
-3. `docker run -it --rm   --name cppdbg   --cap-add=SYS_PTRACE   --security-opt seccomp=unconfined   -p 2000:2000   -v "$PWD":/app:ro   -v "$PWD/build":/app/build:rw   -w /app   simplecppapp:debug   "abcd"`
+- No source code is copied into the runtime containers.
+- Each container only contains its own service binary plus required .so files.
