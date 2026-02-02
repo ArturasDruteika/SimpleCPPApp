@@ -8,6 +8,8 @@ services:
     image: simplecppapp:service1
     container_name: cpp_service1
     command: ["/entrypoint.sh"]
+    environment:
+      - DEBUG_WAIT=1
     ports:
       - "2001:2000"
     cap_add:
@@ -25,6 +27,8 @@ services:
     image: simplecppapp:service2
     container_name: cpp_service2
     command: ["/entrypoint.sh"]
+    environment:
+      - DEBUG_WAIT=1
     ports:
       - "2002:2000"
     cap_add:

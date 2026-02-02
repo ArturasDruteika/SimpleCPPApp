@@ -1,7 +1,7 @@
-#include "core/logger.h"
-#include "math/aggregates.h"
-#include "text/format.h"
-#include "time/clock.h"
+#include "core/logger.hpp"
+#include "math/aggregates.hpp"
+#include "text/format.hpp"
+#include "time/clock.hpp"
 
 #include <iostream>
 #include <vector>

@@ -1,17 +1,37 @@
-#include "core/logger.h"
+#include "core/logger.hpp"
+
+#include "core/formatting.hpp"
 
 #include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
+#include <utility>
 
 namespace core
 {
+    struct Logger::Impl
+    {
+        explicit Impl(std::string name)
+            : appName(std::move(name))
+        {
+        }
+
+        std::string appName;
+    };
+
     Logger::Logger(std::string appName)
-        : appName_(std::move(appName))
+        : impl_(std::make_unique<Impl>(std::move(appName)))
     {
     }
+
+    Logger::~Logger() = default;
+
+    Logger::Logger(Logger&& other) noexcept = default;
+
+    Logger& Logger::operator=(Logger&& other) noexcept = default;
 
     void Logger::Info(const std::string& message) const
     {
@@ -30,10 +50,12 @@ namespace core
 
     void Logger::Log(Level level, const std::string& message) const
     {
-        std::cout << "[" << NowUtcIso8601() << "] "
-                  << "[" << appName_ << "] "
-                  << "[" << LevelToString(level) << "] "
-                  << message << "\n";
+        const auto line = detail::FormatLogLine(
+            NowUtcIso8601(),
+            impl_ ? impl_->appName : "unknown",
+            LevelToString(level),
+            message);
+        std::cout << line << "\n";
     }
 
     std::string Logger::LevelToString(Level level)

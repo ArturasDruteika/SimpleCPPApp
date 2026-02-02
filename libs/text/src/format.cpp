@@ -1,4 +1,6 @@
-#include "text/format.h"
+#include "text/format.hpp"
+
+#include "text/delimiter_helpers.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -24,12 +26,13 @@ namespace textutil
     std::string Join(const std::vector<double>& values, const std::string& delimiter)
     {
         std::ostringstream oss;
+        const auto safeDelimiter = detail::NormalizeDelimiter(delimiter);
         for (std::size_t i = 0; i < values.size(); ++i)
         {
             oss << ToString(values[i]);
             if (i + 1 < values.size())
             {
-                oss << delimiter;
+                oss << safeDelimiter;
             }
         }
         return oss.str();

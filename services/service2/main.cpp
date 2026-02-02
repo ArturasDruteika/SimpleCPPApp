@@ -1,6 +1,6 @@
-#include "core/logger.h"
-#include "text/format.h"
-#include "time/clock.h"
+#include "core/logger.hpp"
+#include "text/format.hpp"
+#include "time/clock.hpp"
 
 #include <iostream>
 #include <string>

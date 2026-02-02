@@ -1,4 +1,6 @@
-#include "math/aggregates.h"
+#include "math/aggregates.hpp"
+
+#include "math/stats_helpers.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -24,13 +26,13 @@ namespace mathutil
     std::vector<double> MovingAverage(const std::vector<double>& values, std::size_t windowSize)
     {
         std::vector<double> result;
-        if (windowSize == 0 || values.size() < windowSize)
+        if (!detail::IsWindowValid(windowSize, values.size()))
         {
             return result;
         }
 
         result.reserve(values.size() - windowSize + 1);
-        double sum = std::accumulate(values.begin(), values.begin() + static_cast<long>(windowSize), 0.0);
+        double sum = detail::SumRange(values, 0, windowSize);
         result.push_back(sum / windowSize);
 
         for (std::size_t i = windowSize; i < values.size(); ++i)

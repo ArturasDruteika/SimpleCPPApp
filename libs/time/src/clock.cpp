@@ -1,9 +1,9 @@
-#include "time/clock.h"
+#include "time/clock.hpp"
+
+#include "time/time_format_helpers.hpp"
 
 #include <chrono>
 #include <ctime>
-#include <iomanip>
-#include <sstream>
 #include <thread>
 
 namespace timeutil
@@ -22,9 +22,7 @@ namespace timeutil
         gmtime_r(&t, &tmUtc);
 #endif
 
-        std::ostringstream oss;
-        oss << std::put_time(&tmUtc, "%Y-%m-%dT%H:%M:%SZ");
-        return oss.str();
+        return detail::FormatUtcIso8601(tmUtc);
     }
 
     void SleepMs(int milliseconds)
