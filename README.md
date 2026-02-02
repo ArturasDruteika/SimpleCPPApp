@@ -15,20 +15,25 @@ This project demonstrates how to debug a C++ application running inside a Docker
 - Docker installed on your host
 - An IDE with C++ debugging support (e.g., VS Code with C++ extension)
 
+
 ## Quick Start
 
+There are two main workflows:
 
-1. **Build the Docker image:**
+### 1. Build on Host, Debug in Container
+
+1. **Build the app on your host:**
+   ```sh
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build
+   ```
+
+2. **Build the Docker image:**
    ```sh
    docker build -t simplecppapp:debug .
    ```
 
-2. **Create the build volume (optional, for persistent builds):**
-   ```sh
-   docker volume create cpp_build
-   ```
-
-3. **Run the container:**
+3. **Run the container (using your host build):**
    ```sh
    docker run -it --rm \
      --name cppdbg \
@@ -40,48 +45,128 @@ This project demonstrates how to debug a C++ application running inside a Docker
      -w /app \
      simplecppapp:debug "abcd"
    ```
-   This will start the app under `gdbserver` listening on port 2000. You can replace `"abcd"` with any arguments you want to pass to the app.
+   This will start the app under `gdbserver` listening on port 2000, using the binary you built on your host. You can replace `"abcd"` with any arguments you want to pass to the app.
 
-4. **Configure your IDE for remote debugging:**
-   - Set up a C++ debug configuration to connect to `localhost:2000` using `gdb` or `lldb`.
-   - Set the program path to `/app/build/SimpleCPPApp`.
-   - Set the source path mapping from `/app` (container) to your project directory (host).
+---
 
-   Example for VS Code (`launch.json`):
-   ```json
+### 2. Build and Debug Entirely in Container (Recommended for Clean/Consistent Builds)
+
+1. **Build the Docker image:**
+   ```sh
+   docker build -t simplecppapp:debug .
+   ```
+
+2. **Run the container (container will build and debug):**
+   
+   #### Linux
+   ```sh
+    docker run -d --rm --name cppdbg --privileged -v "$PWD":/app -v cpp_build:/app/build -w /app --entrypoint sleep   simplecppapp:debug infinity
+   ```
+
+   #### Windows
+   ```sh
+   docker run -d --rm --name cppdbg --privileged -v ${PWD}:/app -v cpp_build:/app/build -w /app --entrypoint sleep simplecppapp:debug infinity
+   ```
+   The entrypoint script will build the app inside the container and launch it under `gdbserver`.
+
+
+
+3. Exec into the container
+    ```sh
+    docker exec -it cppdbg bash
+    tty
+    ```
+
+---
+
+## Configure your IDE for Remote Debugging
+
+Regardless of where you build, you can debug using your IDE (e.g., VS Code) by attaching to the running `gdbserver` in the container.
+
+### VS Code Example (`launch.json`)
+
+#### If you built on the host (binary at `${workspaceFolder}/build/SimpleCPPApp`):
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
     {
-      "version": "0.2.0",
-      "configurations": [
+      "name": "Attach to gdbserver in Docker (host build)",
+      "type": "cppdbg",
+      "request": "launch",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "miDebuggerServerAddress": "localhost:2000",
+      "program": "${workspaceFolder}/build/SimpleCPPApp",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "sourceFileMap": {
+        "/app": "${workspaceFolder}"
+      },
+      "setupCommands": [
+        { "text": "set auto-load safe-path /" },
+        { "text": "-enable-pretty-printing" },
         {
-          "name": "Attach to gdbserver in Docker (bind-mount workspace)",
-          "type": "cppdbg",
-          "request": "launch",
-          "MIMode": "gdb",
-          "miDebuggerPath": "gdb",
-          "miDebuggerServerAddress": "localhost:2000",
-
-          "program": "${workspaceFolder}/build/SimpleCPPApp",
-          "cwd": "${workspaceFolder}",
-          "stopAtEntry": false,
-
-          "sourceFileMap": {
-            "/app": "${workspaceFolder}"
-          },
-
-          "setupCommands": [
-            { "text": "set auto-load safe-path /" },
-            { "text": "-enable-pretty-printing" },
-            {
-              "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"
-            },
-            { "text": "set print pretty on" },
-            { "text": "set print object on" },
-            { "text": "set print elements 0" }
-          ]
-        }
+          "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"
+        },
+        { "text": "set print pretty on" },
+        { "text": "set print object on" },
+        { "text": "set print elements 0" }
       ]
     }
-   ```
+  ]
+}
+```
+
+#### If you built in the container (binary at `/app/build/SimpleCPPApp`):
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (gdb in container via docker exec)",
+      "type": "cppdbg",
+      "request": "launch",
+      "MIMode": "gdb",
+
+      "program": "/app/build/SimpleCPPApp",
+      "args": ["abcd"],
+      "cwd": "/app",
+
+      "pipeTransport": {
+        "pipeProgram": "docker",
+        "pipeArgs": ["exec", "-i", "cppdbg", "sh", "-lc"],
+        "debuggerPath": "/usr/bin/gdb"
+      },
+
+      "externalConsole": false,
+
+      "sourceFileMap": {
+        "/app": "${workspaceFolder}"
+      },
+
+      "setupCommands": [
+        { "text": "set inferior-tty /dev/pts/0" },
+        { "text": "set auto-load safe-path /" },
+        { "text": "-enable-pretty-printing" },
+        {
+          "text": "python import sys; sys.path.insert(0, '/usr/share/gcc/python'); import libstdcxx.v6.printers as p; p.register_libstdcxx_printers(None)"
+        },
+        { "text": "set print pretty on" },
+        { "text": "set print object on" },
+        { "text": "set print elements 0" }
+      ]
+    }
+  ]
+}
+
+```
+
+**Note:** The only difference is where the binary was built. The path mapping remains the same as long as you mount your workspace to `/app`.
+
+---
 
 5. **Set breakpoints in your IDE and start debugging!**
 
