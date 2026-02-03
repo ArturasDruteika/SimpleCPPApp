@@ -1,0 +1,38 @@
+services:
+  service1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_BIN: service1
+    image: simplecppapp:service1
+    container_name: cpp_service1
+    command: ["/entrypoint.sh"]
+    environment:
+      - DEBUG_WAIT=1
+    ports:
+      - "2001:2000"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    tty: true
+
+  service2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_BIN: service2
+    image: simplecppapp:service2
+    container_name: cpp_service2
+    command: ["/entrypoint.sh"]
+    environment:
+      - DEBUG_WAIT=1
+    ports:
+      - "2002:2000"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    tty: true

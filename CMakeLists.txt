@@ -6,5 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_subdirectory(libs/core)
+add_subdirectory(libs/math)
+add_subdirectory(libs/text)
+add_subdirectory(libs/time)
+add_subdirectory(app)
+add_subdirectory(services/service1)
+add_subdirectory(services/service2)
 
