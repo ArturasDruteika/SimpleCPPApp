@@ -1,6 +1,9 @@
 # SimpleCPPApp: Debug C++ Services in Docker with VS Code
 
-This project shows how to debug two C++ services running in separate Docker containers using VS Code breakpoints. The build happens inside the containers and gdb runs inside each container (no gdbserver).
+This project shows how to debug two C++ services running in separate Docker containers using VS Code breakpoints. You can debug in two ways:
+
+1) gdb inside the container via pipeTransport
+2) host gdb attaching to gdbserver inside the container
 
 ## What’s Included
 
@@ -23,7 +26,11 @@ Containers:
 - cpp_service1 (service1)
 - cpp_service2 (service2)
 
-## Debugging (gdb inside containers)
+## Debugging Options
+
+Choose one of the following setups. Both are supported and documented below.
+
+### Option A: gdb inside containers (pipeTransport)
 
 Use the provided VS Code configs in launch.json:
 
@@ -32,7 +39,7 @@ Use the provided VS Code configs in launch.json:
 
 Both use pipeTransport and run gdb inside the container. Source mapping uses /app to your workspace.
 
-### launch.json (current)
+### launch.json (pipeTransport)
 
 ```json
 {
@@ -96,6 +103,47 @@ Both use pipeTransport and run gdb inside the container. Source mapping uses /ap
 }
 ```
 
+### Option B: host gdb -> gdbserver inside container
+
+This option runs gdbserver inside the container and attaches with host gdb. It is useful when you want the debugger to run on the host while the process runs in the container.
+
+Requirements:
+- gdbserver must be running in the container (see docker-compose or entrypoint)
+- The container must expose a debug port (e.g., 2001)
+
+Example VS Code config (service1):
+
+```jsonc
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Attach (host gdb -> gdbserver in cpp_service1)",
+			"type": "cppdbg",
+			"request": "launch",
+			"MIMode": "gdb",
+			"miDebuggerPath": "/usr/bin/gdb",
+			"program": "${workspaceFolder}/.vscode/bin/service1",
+			"cwd": "${workspaceFolder}",
+			"miDebuggerServerAddress": "localhost:2001",
+			"stopAtEntry": false,
+			"externalConsole": false,
+			"justMyCode": true,
+			"sourceFileMap": {
+				"/app": "${workspaceFolder}"
+			},
+			"setupCommands": [
+				{ "text": "set auto-load safe-path /" },
+				{ "text": "-enable-pretty-printing" },
+
+				// Important: map container compile paths to host workspace paths
+				{ "text": "set substitute-path /app ${workspaceFolder}" }
+			]
+		}
+	]
+}
+```
+
 ### Quick debug tutorial
 
 1. Build and start the containers:
@@ -114,3 +162,4 @@ Both use pipeTransport and run gdb inside the container. Source mapping uses /ap
 
 - No source code is copied into the runtime containers.
 - Each container only contains its own service binary plus required .so files.
+- For gdbserver attach, ensure the binary path used in `program` matches your host copy (e.g., .vscode/bin/service1).
