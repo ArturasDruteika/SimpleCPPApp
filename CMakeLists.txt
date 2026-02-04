@@ -10,7 +10,6 @@ add_subdirectory(libs/core)
 add_subdirectory(libs/math)
 add_subdirectory(libs/text)
 add_subdirectory(libs/time)
-add_subdirectory(app)
 add_subdirectory(services/service1)
 add_subdirectory(services/service2)
 

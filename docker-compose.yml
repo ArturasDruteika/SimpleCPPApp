@@ -11,7 +11,7 @@ services:
     environment:
       - DEBUG_WAIT=1
     ports:
-      - "2001:2000"
+      - "2003:2000"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -30,7 +30,7 @@ services:
     environment:
       - DEBUG_WAIT=1
     ports:
-      - "2002:2000"
+      - "2004:2000"
     cap_add:
       - SYS_PTRACE
     security_opt:
