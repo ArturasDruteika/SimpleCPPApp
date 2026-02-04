@@ -33,5 +33,8 @@ RUN chmod +x /entrypoint.sh
 
 ENV APP_BIN=/app/bin/service
 ENV LD_LIBRARY_PATH=/app/bin
+ENV DEBUG_WAIT=1
+ENV DEBUG_TRANSPORT=gdbserver
+ENV GDBSERVER_PORT=2000
 
 ENTRYPOINT ["/entrypoint.sh"]
