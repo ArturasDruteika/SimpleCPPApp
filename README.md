@@ -53,6 +53,12 @@ All source code is mounted into the container at:
 
 There are two independent and valid debugging setups.
 
+Both modes are selected via container environment variables (they do not affect your host Linux env):
+
+- `DEBUG_WAIT=1` enables “debug mode” in `entrypoint.sh`
+- `DEBUG_TRANSPORT=gdbserver|pipetransport` chooses whether the container runs `gdbserver` or sleeps (so VS Code can start GDB via pipe transport)
+- `GDBSERVER_PORT` controls the port `gdbserver` listens on inside the container (default `2000`)
+
 ### Mode A — gdbserver (Recommended, Most Educational)
 
 Host GDB → gdbserver inside container
@@ -87,6 +93,12 @@ This is simpler but less representative of real remote debugging.
 ### Start the Container (service1 example)
 
 ```sh
+docker compose up --build -d
+```
+
+Or if only a specific container would be started:
+
+```sh
 docker compose up --build -d service1
 ```
 
@@ -104,8 +116,8 @@ Starting gdbserver on 0.0.0.0:2000
 
 Port mapping (from `docker-compose.yml`):
 
-- service1 → localhost:2001
-- service2 → localhost:2002
+- service1 → localhost:2003
+- service2 → localhost:2004
 
 ### Copy the Executable to the Host (Symbols)
 
@@ -182,7 +194,7 @@ chmod +x .vscode/bin/*
 ### Start Container Normally
 
 ```sh
-docker compose up --build -d service1
+DEBUG_TRANSPORT=pipetransport docker compose up --build -d
 ```
 
 ### VS Code launch.json — Pipe Transport
@@ -203,7 +215,7 @@ docker compose up --build -d service1
 
       "pipeTransport": {
         "pipeProgram": "docker",
-        "pipeArgs": ["exec", "-i", "cpp_service1", "bash", "-lc"],
+        "pipeArgs": ["exec", "-i", "-t", "cpp_service1", "bash", "-lc"],
         "debuggerPath": "/usr/bin/gdb"
       },
 
